@@ -42,9 +42,10 @@ public static class EnemyDatabase
 {
     public static List<EnemyDefinition> AllTypes = new List<EnemyDefinition>
     {
-        new EnemyDefinition("Grunt", Color.Red, 60f, 28, "xp", 70),
-        new EnemyDefinition("Armor Bug", Color.Green, 50f, 26, "armor", 15),
-        new EnemyDefinition("Ammo Bug", Color.Orange, 50f, 26, "ammo", 15),
+        new EnemyDefinition("Grunt", Color.Red, 60f, 28, "xp", 30),
+        new EnemyDefinition("Armor Bug", Color.Green, 50f, 26, "armor", 70),
+        new EnemyDefinition("Ammo Bug", Color.Orange, 50f, 26, "ammo", 50),
+        new EnemyDefinition("Rapidfire Bug", Color.Purple, 50f, 26, "rapidfire", 70)
     };
 
     public static EnemyDefinition GetRandom(Random rng)
@@ -65,11 +66,27 @@ public static class EnemyDatabase
 
 public class Game1 : Game
 {
+    private enum GameState { Menu, Playing }
+private GameState _state = GameState.Menu;
+private float _menuZoomScale = 6f; // starts zoomed in on the eye
+private bool _isZoomingOut = false;
+private float _zoomOutSpeed = 8f;
     private GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch;
     private Texture2D _pixel;
     private SpriteFont _font;
 
+    //animation texture
+    private Texture2D _bladeTexture;
+private Texture2D _eyeTexture;
+private Texture2D _eyeSocketTexture;
+private Texture2D _eyePupilTexture;
+private float _eyeSocketScale = 1.5f;
+private float _pupilMaxOffset = 5f; // how far the pupil can drift from center
+private Vector2 _pupilOffset = Vector2.Zero;
+
+//killtracker
+private int _totalKills = 0;
     // Player
     private Vector2 _playerPosition;
     private float _playerSpeed = 200f;
@@ -77,12 +94,9 @@ public class Game1 : Game
     private bool _isDead = false;
 
     // Buzzsaw shell
-    private int _sawSlotCount = 24;
-    private float _sawSegmentWidth = 16f;
-    private float _sawSegmentHeight = 6f;
+  
     private float _sawAngle = 0f;
     private float _sawOrbitSpeed = 3f;
-    private float _sawOrbitRadius = 80f;
 
     // Armor — now a threshold state instead of gradual segment loss
     private int _maxArmor = 100;
@@ -109,10 +123,10 @@ public class Game1 : Game
     private List<Enemy> _enemies = new List<Enemy>();
     private Random _rng = new Random();
     private float _enemySpawnTimer = 0f;
-    private float _enemySpawnInterval = 1.5f;
+    private float _enemySpawnInterval = 0.4f;
     private float _survivalTime = 0f;
     private float _difficultyRampRate = 0.015f;
-    private float _minSpawnInterval = 0.15f;
+    private float _minSpawnInterval = 0.05f;
 
     // XP
     private int _xp = 0;
@@ -139,17 +153,25 @@ public class Game1 : Game
     private List<Vector2> _rapidFirePelletPositions = new List<Vector2>();
     private float _rapidFirePelletSpawnTimer = 0f;
     private float _rapidFirePelletSpawnInterval = 12f;
+    private float _armorRegenRate = 4f; // armor per second, tune to taste
+private float _armorRegenTimer = 0f;
 
     public Game1()
     {
         _graphics = new GraphicsDeviceManager(this);
+        DisplayMode displayMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+        _graphics.PreferredBackBufferWidth = displayMode.Width;
+        _graphics.PreferredBackBufferHeight = displayMode.Height;
+        _graphics.IsFullScreen = true;
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
     }
 
     protected override void Initialize()
     {
-        _playerPosition = new Vector2(400, 300);
+        _playerPosition = new Vector2(
+            _graphics.PreferredBackBufferWidth / 2f,
+            _graphics.PreferredBackBufferHeight / 2f);
         base.Initialize();
     }
 
@@ -159,15 +181,35 @@ public class Game1 : Game
         _pixel = new Texture2D(GraphicsDevice, 1, 1);
         _pixel.SetData(new[] { Color.White });
         _font = Content.Load<SpriteFont>("font");
+        _bladeTexture = Content.Load<Texture2D>("Blade1_Frame1");
+_eyeTexture = Content.Load<Texture2D>("Frame_1");
+_eyeSocketTexture = Content.Load<Texture2D>("eye_socket");
+_eyePupilTexture = Content.Load<Texture2D>("eye_pupil");
     }
 
     protected override void Update(GameTime gameTime)
     {
+        
         var keyboard = Keyboard.GetState();
         if (keyboard.IsKeyDown(Keys.Escape)) Exit();
+        
 
         float delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
-
+// In Update(), before your existing gameplay logic:
+if (_state == GameState.Menu)
+{
+    if (_isZoomingOut)
+    {
+        _menuZoomScale = Math.Max(1f, _menuZoomScale - _zoomOutSpeed * delta);
+        if (_menuZoomScale <= 1f) _state = GameState.Playing;
+    }
+    else if (keyboard.IsKeyDown(Keys.Enter))
+    {
+        _isZoomingOut = true;
+    }
+    base.Update(gameTime);
+    return; // skip gameplay updates while in menu
+}
         if (_isDead)
         {
             if (keyboard.IsKeyDown(Keys.R)) RestartGame();
@@ -180,6 +222,10 @@ public class Game1 : Game
         if (keyboard.IsKeyDown(Keys.A)) _playerPosition.X -= _playerSpeed * delta;
         if (keyboard.IsKeyDown(Keys.D)) _playerPosition.X += _playerSpeed * delta;
 
+        float playerHalfSize = _playerSize / 2f;
+        _playerPosition.X = Math.Clamp(_playerPosition.X, playerHalfSize, _graphics.PreferredBackBufferWidth - playerHalfSize);
+        _playerPosition.Y = Math.Clamp(_playerPosition.Y, playerHalfSize, _graphics.PreferredBackBufferHeight - playerHalfSize);
+
         UpdateEnemies(delta);
         UpdateBuzzsaw(delta);
         UpdatePellets(delta);
@@ -187,9 +233,35 @@ public class Game1 : Game
         UpdateRapidFirePellets(delta);
         UpdateBullets(delta);
         CheckPlayerContact();
+        UpdatePupilTrackMouse();
+
+        if (_armor < _maxArmor)
+{
+    _armorRegenTimer += delta;
+    if (_armorRegenTimer >= 1f)
+    {
+        _armorRegenTimer -= 1f;
+        _armor = Math.Min(_maxArmor, _armor + (int)_armorRegenRate);
+    }
+}
 
         base.Update(gameTime);
     }
+
+    private void UpdatePupilTrackMouse()
+{
+    MouseState mouse = Mouse.GetState();
+    Vector2 mousePos = new Vector2(mouse.X, mouse.Y);
+    Vector2 toMouse = mousePos - _playerPosition;
+
+    if (toMouse.LengthSquared() > 0.01f)
+    {
+        // Clamp so the pupil never drifts further than the eye socket allows
+        float distance = Math.Min(toMouse.Length(), _pupilMaxOffset);
+        toMouse.Normalize();
+        _pupilOffset = toMouse * distance;
+    }
+}
 
     private void GrantEnemyReward(string rewardType)
     {
@@ -204,6 +276,9 @@ public class Game1 : Game
             case "ammo":
                 _ammo = Math.Min(_maxAmmo, _ammo + _ammoRewardAmount);
                 break;
+                case "rapidfire":
+                _rapidFireCharge = Math.Min(_maxRapidFireCharge, _rapidFireCharge + _rapidFireChargePerPellet);
+                break;
         }
     }
 
@@ -212,7 +287,7 @@ public class Game1 : Game
         _playerPosition = new Vector2(_graphics.PreferredBackBufferWidth / 2, _graphics.PreferredBackBufferHeight / 2);
         _armor = _maxArmor;
         _ammo = _maxAmmo;
-        _rapidFireCharge = 0f;
+        _totalKills = 0;
         _xp = 0;
         _enemies.Clear();
         _pelletPositions.Clear();
@@ -271,65 +346,31 @@ public class Game1 : Game
         _enemies.Add(new Enemy(spawnPos, def));
     }
 
-    private void UpdateBuzzsaw(float delta)
+private float _bladeInnerRadius = 60f; // enemies inside this are past the blade, touching the player
+private float _bladeOuterRadius = 90f; // enemies outside this haven't reached the blade yet
+
+private void UpdateBuzzsaw(float delta)
+{
+    if (_isDead) return;
+
+    _sawAngle += _sawOrbitSpeed * delta;
+
+    if (IsShellBroken()) return; // blade inactive, enemies pass straight through
+
+    for (int i = _enemies.Count - 1; i >= 0; i--)
     {
-        if (_isDead) return;
+        Enemy enemy = _enemies[i];
+        float dist = Vector2.Distance(enemy.Position, _playerPosition);
 
-        _sawAngle += _sawOrbitSpeed * delta;
-
-        if (IsShellBroken()) return; // shell passable — enemies pass through untouched
-
-        var sawSegments = GetSawSegments();
-
-        for (int i = _enemies.Count - 1; i >= 0; i--)
+        if (dist >= _bladeInnerRadius && dist <= _bladeOuterRadius)
         {
-            Enemy enemy = _enemies[i];
-            Rectangle enemyRect = new Rectangle(
-                (int)enemy.Position.X - enemy.Definition.Size / 2,
-                (int)enemy.Position.Y - enemy.Definition.Size / 2,
-                enemy.Definition.Size,
-                enemy.Definition.Size);
-
-            bool hitBySaw = false;
-            foreach (var segment in sawSegments)
-            {
-                Rectangle sawRect = new Rectangle(
-                    (int)segment.position.X - (int)(_sawSegmentWidth / 2),
-                    (int)segment.position.Y - (int)(_sawSegmentWidth / 2),
-                    (int)_sawSegmentWidth,
-                    (int)_sawSegmentWidth);
-                if (sawRect.Intersects(enemyRect))
-                {
-                    hitBySaw = true;
-                    break;
-                }
-            }
-
-            if (hitBySaw)
-            {
-                GrantEnemyReward(enemy.Definition.RewardType);
-                _armor = Math.Max(0, _armor - _armorLossPerKill);
-                _enemies.RemoveAt(i);
-            }
+            GrantEnemyReward(enemy.Definition.RewardType);
+            _armor = Math.Max(0, _armor - _armorLossPerKill);
+            _totalKills++;
+            _enemies.RemoveAt(i);
         }
     }
-
-    private List<(Vector2 position, float angle)> GetSawSegments()
-    {
-        var segments = new List<(Vector2, float)>();
-
-        for (int i = 0; i < _sawSlotCount; i++)
-        {
-            float slotAngle = _sawAngle + (i * (MathHelper.TwoPi / _sawSlotCount));
-            Vector2 offset = new Vector2(
-                (float)Math.Cos(slotAngle) * _sawOrbitRadius,
-                (float)Math.Sin(slotAngle) * _sawOrbitRadius
-            );
-            segments.Add((_playerPosition + offset, slotAngle));
-        }
-
-        return segments;
-    }
+}
 
     private void UpdatePellets(float delta)
     {
@@ -454,6 +495,7 @@ public class Game1 : Game
                 {
                     GrantEnemyReward(enemy.Definition.RewardType);
                     _enemies.RemoveAt(j);
+                     _totalKills++;
                     bulletHit = true;
                     break;
                 }
@@ -474,7 +516,9 @@ public class Game1 : Game
                 _bulletPositions.RemoveAt(i);
                 _bulletVelocities.RemoveAt(i);
             }
+            
         }
+        
     }
 
     private void CheckPlayerContact()
@@ -501,9 +545,34 @@ public class Game1 : Game
         GraphicsDevice.Clear(Color.CornflowerBlue);
         _spriteBatch.Begin();
 
-        Color playerColor = _rapidFireCharge > 0 ? Color.Purple : Color.Black;
-        Rectangle playerRectangle = new Rectangle((int)_playerPosition.X - _playerSize / 2, (int)_playerPosition.Y - _playerSize / 2, _playerSize, _playerSize);
-        _spriteBatch.Draw(_pixel, playerRectangle, playerColor);
+// In Draw(), for the menu state:
+if (_state == GameState.Menu)
+{
+    Vector2 menuCenter = new Vector2(_graphics.PreferredBackBufferWidth / 2f, _graphics.PreferredBackBufferHeight / 2f);
+
+    Vector2 menuSocketOrigin = new Vector2(_eyeSocketTexture.Width / 2f - 24.5f, _eyeSocketTexture.Height / 2f - 68.5f);
+    float menuSocketScale = _menuZoomScale * _eyeSocketScale * _playerSize / (float)_eyeSocketTexture.Width;
+    _spriteBatch.Draw(_eyeSocketTexture, menuCenter, null, Color.White, 0f, menuSocketOrigin, menuSocketScale, SpriteEffects.None, 0f);
+
+    float animationTime = (float)gameTime.TotalGameTime.TotalSeconds;
+    Vector2 menuPupilOffset = new Vector2(
+        MathF.Cos(animationTime),
+        MathF.Sin(animationTime * 0.7f)) * (_pupilMaxOffset * _menuZoomScale * 0.5f);
+
+    Vector2 menuPupilOrigin = new Vector2(_eyePupilTexture.Width / 2f - 27f, _eyePupilTexture.Height / 2f - 55f);
+    float menuPupilScale = _menuZoomScale * _playerSize / (float)_eyeSocketTexture.Width;
+    _spriteBatch.Draw(_eyePupilTexture, menuCenter + menuPupilOffset, null, Color.White, 0f, menuPupilOrigin, menuPupilScale, SpriteEffects.None, 0f);
+
+    if (!_isZoomingOut)
+    {
+        string prompt = "Press ENTER";
+        Vector2 size = _font.MeasureString(prompt);
+        _spriteBatch.DrawString(_font, prompt, new Vector2(menuCenter.X - size.X / 2, menuCenter.Y + 150), Color.White);
+    }
+    _spriteBatch.End();
+    base.Draw(gameTime);
+    return;
+}
 
         foreach (var enemy in _enemies)
         {
@@ -515,15 +584,22 @@ public class Game1 : Game
         }
 
         // Buzzsaw shell — color reflects broken/intact state
-        var sawSegments = GetSawSegments();
-        Color segmentColor = IsShellBroken() ? Color.DarkRed : Color.Gray;
-        foreach (var segment in sawSegments)
-        {
-            Rectangle segmentRect = new Rectangle(0, 0, (int)_sawSegmentWidth, (int)_sawSegmentHeight);
-            Vector2 origin = new Vector2(_sawSegmentWidth / 2, _sawSegmentHeight / 2);
-            _spriteBatch.Draw(_pixel, segment.position, segmentRect, segmentColor, segment.angle + MathHelper.PiOver2, origin, 1f, SpriteEffects.None, 0f);
-        }
+       // Blade — rotates as one piece, tinted red when broken
+Color bladeTint = IsShellBroken() ? Color.DarkRed : Color.White;
+Rectangle bladeRect = new Rectangle((int)_playerPosition.X, (int)_playerPosition.Y, (int)(_bladeOuterRadius * 2), (int)(_bladeOuterRadius * 2));
+Vector2 bladeOrigin = new Vector2(_bladeTexture.Width / 2f, _bladeTexture.Height / 2f);
+_spriteBatch.Draw(_bladeTexture, _playerPosition, null, bladeTint, _sawAngle, bladeOrigin, (_bladeOuterRadius * 2) / _bladeTexture.Width, SpriteEffects.None, 0f);
 
+// Eye — the player's actual visual, centered
+// Socket/iris — stays fixed at player center
+Vector2 socketOrigin = new Vector2(_eyeSocketTexture.Width / 2f - 24.5f, _eyeSocketTexture.Height / 2f - 68.5f);
+_spriteBatch.Draw(_eyeSocketTexture, _playerPosition, null, Color.White, 0f, socketOrigin, _eyeSocketScale * _playerSize / (float)_eyeSocketTexture.Width, SpriteEffects.None, 0f);
+
+// Pupil — drawn at player center PLUS the tracked offset
+Vector2 pupilOrigin = new Vector2(_eyePupilTexture.Width / 2f - 27f, _eyePupilTexture.Height / 2f - 55f);
+Vector2 pupilDrawPosition = _playerPosition + _pupilOffset;
+float pupilScale = _playerSize / (float)_eyeSocketTexture.Width; // match the socket's scale so proportions stay consistent
+_spriteBatch.Draw(_eyePupilTexture, pupilDrawPosition, null, Color.White, 0f, pupilOrigin, pupilScale, SpriteEffects.None, 0f);
         foreach (var pelletPos in _pelletPositions)
         {
             Rectangle pelletRect = new Rectangle((int)pelletPos.X - (int)(_pelletSize / 2), (int)pelletPos.Y - (int)(_pelletSize / 2), (int)_pelletSize, (int)_pelletSize);
@@ -582,7 +658,7 @@ public class Game1 : Game
                 new Vector2(_graphics.PreferredBackBufferWidth / 2 - restartSize.X / 2, _graphics.PreferredBackBufferHeight / 2 + 40),
                 Color.White);
         }
-
+_spriteBatch.DrawString(_font, "Kills: " + _totalKills, new Vector2(10, 120), Color.White);
         _spriteBatch.End();
         base.Draw(gameTime);
     }
