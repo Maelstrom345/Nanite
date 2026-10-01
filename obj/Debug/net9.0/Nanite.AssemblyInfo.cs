@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Nanite")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+875464e95ea77dacdebe957208e2d06a80734db6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fa576a90c8a2aab7c15666306d248656505480d1")]
 [assembly: System.Reflection.AssemblyProductAttribute("Nanite")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Nanite")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

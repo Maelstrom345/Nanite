@@ -315,11 +315,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\ADMIN\\Nanite\\Nanite.csproj",
+      "projectUniqueName": "c:\\Users\\ADMIN\\Nanite\\Nanite.csproj",
       "projectName": "Nanite",
-      "projectPath": "C:\\Users\\ADMIN\\Nanite\\Nanite.csproj",
+      "projectPath": "c:\\Users\\ADMIN\\Nanite\\Nanite.csproj",
       "packagesPath": "C:\\Users\\ADMIN\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\ADMIN\\Nanite\\obj\\",
+      "outputPath": "c:\\Users\\ADMIN\\Nanite\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\ADMIN\\AppData\\Roaming\\NuGet\\NuGet.Config"
