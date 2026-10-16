@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "b5uWkWW+WOU=",
+  "dgSpecHash": "D4kbyOtAjDo=",
   "success": true,
-  "projectFilePath": "c:\\Users\\ADMIN\\Nanite\\Nanite.csproj",
+  "projectFilePath": "C:\\Users\\ADMIN\\Nanite\\Nanite.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\ADMIN\\.nuget\\packages\\monogame.content.builder.task\\3.8.6\\monogame.content.builder.task.3.8.6.nupkg.sha512",
     "C:\\Users\\ADMIN\\.nuget\\packages\\monogame.framework.desktopgl\\3.8.6\\monogame.framework.desktopgl.3.8.6.nupkg.sha512",
