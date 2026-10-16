@@ -9,7 +9,7 @@ namespace Nanite;
 /// Every screen owns its own Update and Draw logic.
 /// Screens don't talk to each other — Game1 mediates transitions.
 /// </summary>
-internal abstract class Screen
+public abstract class Screen
 {
     protected Game1 Game { get; }
     protected GraphicsDevice GraphicsDevice => Game.GraphicsDevice;

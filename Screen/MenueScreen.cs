@@ -33,13 +33,18 @@ internal sealed class MenuScreen : Screen
         if (_isZoomingOut)
         {
             _menuZoomScale = MathF.Max(1f, _menuZoomScale - ZoomOutSpeed * delta);
-            if (_menuZoomScale <= 1f)
-            {
-                // Ready to move to the map screen.
-                // For now, we go nowhere (there's no HiveMapScreen yet).
-                // Once we build it, this becomes:
-                // Game.SwitchScreen(new HiveMapScreen(Game));
-            }
+           if (_menuZoomScale <= 1f)
+{
+    // TEMP: launch a test arena so we can verify Step 2 works.
+    // Step 5 will replace this with the HiveMapScreen.
+    HiveData testHive = new HiveData(
+        "test_hive",
+        HiveType.Normal,
+        Vector2.Zero,
+        Point.Zero,
+        150, 150, 0, 1);
+    Game.SwitchScreen(new ArenaScreen(Game, testHive));
+}
         }
         else if (keyboard.IsKeyDown(Keys.Enter))
         {

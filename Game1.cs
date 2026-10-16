@@ -52,7 +52,7 @@ public class Game1 : Game
     /// <summary>
     /// Called by screens when they want to change state.
     /// </summary>
-    private void SwitchScreen(Screen nextScreen)
+    public void SwitchScreen(Screen nextScreen)
     {
         _currentScreen = nextScreen;
     }
