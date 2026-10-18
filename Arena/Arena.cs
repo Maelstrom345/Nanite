@@ -237,13 +237,39 @@ internal sealed class Arena
         Enemies.Add(new Enemy(spawnPos, def));
     }
 
-    private EnemyDefinition PickEnemyForWave()
+        private EnemyDefinition PickEnemyForWave()
     {
         int roll = _rng.Next(100);
-        if (roll < 45) return FindByName("Red Bug");
-        if (roll < 90) return FindByName("Armor Bug");
-        if (roll < 95) return FindByName("Yellow Bug");
-        return FindByName("Rapidfire Bug");
+
+        switch (Theme)
+        {
+            case "Exploder":
+                if (roll < 80) return FindByName("Red Bug");
+                if (roll < 90) return FindByName("Armor Bug");
+                return FindByName("Yellow Bug");
+
+            case "Range":
+                if (roll < 50) return FindByName("Yellow Bug");
+                if (roll < 80) return FindByName("Rapidfire Bug");
+                return FindByName("Armor Bug");
+
+            case "Speedster":
+                if (roll < 70) return FindByName("Red Bug");
+                if (roll < 90) return FindByName("Yellow Bug");
+                return FindByName("Armor Bug");
+
+            case "Summoner":
+                if (roll < 70) return FindByName("Armor Bug");
+                if (roll < 85) return FindByName("Red Bug");
+                return FindByName("Yellow Bug");
+
+            case "Mixed":
+            default:
+                if (roll < 50) return FindByName("Red Bug");
+                if (roll < 75) return FindByName("Armor Bug");
+                if (roll < 90) return FindByName("Yellow Bug");
+                return FindByName("Rapidfire Bug");
+        }
     }
 
     private EnemyDefinition FindByName(string name)
