@@ -25,6 +25,11 @@ internal sealed class HiveData
     public bool Completed { get; set; }
 public int RegionX{get; set;}
 public int RegionY{get; set;}
+    // Add these three fields to your HiveData class
+    public int GridX { get; set; }
+    public int GridY { get; set; }
+    public string Theme { get; set; } = "Mixed";
+    public bool Cleared { get; set; } = false;
     public HiveData(string id, HiveType type, Vector2 worldPosition, Point regionPosition,
         int radiusX, int radiusY, int generationSeed, int difficulty)
     {

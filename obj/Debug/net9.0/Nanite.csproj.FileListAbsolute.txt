@@ -130,3 +130,4 @@ C:\Users\ADMIN\Nanite\obj\compile-check\Content\Yellow_bug_frame3.xnb
 C:\Users\ADMIN\Nanite\obj\compile-check\Content\Yellow_bug_frame4.xnb
 C:\Users\ADMIN\Nanite\obj\compile-check\Content\Yellow_bug_frame5.xnb
 C:\Users\ADMIN\Nanite\obj\compile-check\Content\Yellow_bug_frame6.xnb
+c:\Users\ADMIN\Nanite\bin\Debug\net9.0\Content\cygnus_reveal.xnb
